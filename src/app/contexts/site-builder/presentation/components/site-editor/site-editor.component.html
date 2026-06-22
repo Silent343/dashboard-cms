@@ -1,0 +1,143 @@
+<!--
+  Site editor screen.
+  Three columns: block list · editor (code|visual) · live preview.
+-->
+<div class="editor-shell">
+
+  <!-- Top bar: page slug, mode toggle, status -->
+  <header class="editor-topbar">
+    <div class="topbar-id">
+      <span class="topbar-dot"></span>
+      <span class="topbar-slug">/sites/{{ store.page()?.slug?.value }}</span>
+      <span class="topbar-title">{{ store.page()?.title }}</span>
+    </div>
+
+    <div class="mode-toggle" role="tablist" aria-label="Editing mode">
+      <button
+        role="tab"
+        [attr.aria-selected]="store.editMode() === 'visual'"
+        [class.is-active]="store.editMode() === 'visual'"
+        (click)="onSetMode('visual')">
+        Visual
+      </button>
+      <button
+        role="tab"
+        [attr.aria-selected]="store.editMode() === 'code'"
+        [class.is-active]="store.editMode() === 'code'"
+        (click)="onSetMode('code')">
+        Code
+      </button>
+    </div>
+
+    <div class="topbar-status">
+      @if (store.isLoading()) {
+        <span class="status status--busy">Loading…</span>
+      } @else if (store.error()) {
+        <span class="status status--error">{{ store.error() }}</span>
+      } @else {
+        <span class="status status--ok">Saved locally</span>
+      }
+    </div>
+  </header>
+
+  <div class="editor-body">
+
+    <!-- Left rail: block list -->
+    <nav class="block-rail" aria-label="Page sections">
+      <p class="rail-label">Sections</p>
+      @for (block of store.blocks(); track block.id) {
+        <button
+          class="rail-item"
+          [class.is-selected]="block.id === store.selectedBlockId()"
+          (click)="onSelectBlock(block.id)">
+          <span class="rail-item-order">{{ block.order + 1 }}</span>
+          <span class="rail-item-type">{{ block.type.value }}</span>
+        </button>
+      } @empty {
+        <p class="rail-empty">No sections yet. Add one to start.</p>
+      }
+    </nav>
+
+    <!-- Center: editor -->
+    <section class="editor-pane">
+      @if (store.selectedBlock(); as block) {
+
+        @if (store.editMode() === 'code') {
+          <!-- Code mode -->
+          <div class="code-editor">
+            <label class="pane-label" for="code-area">
+              Block JSON — edit <code>data</code> and <code>styles</code>
+            </label>
+            <textarea
+              id="code-area"
+              class="code-area"
+              spellcheck="false"
+              [ngModel]="codeDraft()"
+              (ngModelChange)="codeDraft.set($event)"></textarea>
+            <button class="btn-apply" (click)="onApplyCode()">Apply changes</button>
+          </div>
+
+        } @else {
+          <!-- Visual mode -->
+          <div class="visual-editor">
+            <p class="pane-label">Editing: {{ block.type.value }}</p>
+
+            @if (block.type.supportsImages()) {
+              <div class="visual-images">
+                <div class="visual-images-head">
+                  <span>Images</span>
+                  <button class="btn-add" (click)="onAddImage()">+ Add image</button>
+                </div>
+                <div class="image-grid">
+                  @for (img of block.getImages(); track img.id) {
+                    <figure class="image-card">
+                      <img [src]="img.url" [alt]="img.alt" />
+                      <button
+                        class="image-remove"
+                        title="Remove image"
+                        (click)="onRemoveImage(img.id)">×</button>
+                    </figure>
+                  } @empty {
+                    <p class="rail-empty">No images. Add the first one.</p>
+                  }
+                </div>
+              </div>
+            } @else {
+              <label class="field">
+                <span>Title</span>
+                <input
+                  type="text"
+                  [ngModel]="block.data['title']"
+                  (ngModelChange)="onVisualFieldChange('title', $event)" />
+              </label>
+              <label class="field">
+                <span>Body</span>
+                <textarea
+                  [ngModel]="block.data['body']"
+                  (ngModelChange)="onVisualFieldChange('body', $event)"></textarea>
+              </label>
+            }
+          </div>
+        }
+
+      } @else {
+        <p class="rail-empty">Select a section to edit.</p>
+      }
+    </section>
+
+    <!-- Right: live preview -->
+    <section class="preview-pane" aria-label="Live preview">
+      <p class="pane-label preview-label">Preview</p>
+      <div class="preview-frame">
+        @for (block of store.blocks(); track block.id) {
+          <div
+            class="preview-block"
+            [class.is-selected]="block.id === store.selectedBlockId()"
+            [innerHTML]="renderBlockPreview(block.type.value, block.data)">
+          </div>
+        }
+      </div>
+    </section>
+
+  </div>
+</div>

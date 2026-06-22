@@ -1,59 +1,54 @@
-# DashboardCml
+# Site Builder — Core (Angular + DDD/Clean Architecture)
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.16.
+Núcleo del contexto `site-builder` para el CMS de landing pages.
+Modo dual de edición (código ↔ visual) sobre una única fuente de verdad
+basada en bloques tipados JSON.
 
-## Development server
+## Estructura (Clean Architecture)
 
-To start a local development server, run:
-
-```bash
-ng serve
+```
+src/app/contexts/site-builder/
+├── domain/                         # Lógica pura, sin Angular ni HTTP
+│   ├── models/
+│   │   ├── block.entity.ts         # Entidad Block (métodos código + visual)
+│   │   └── landing-page.aggregate.ts  # Aggregate root (orden, reorder)
+│   ├── value-objects/
+│   │   ├── block-id.vo.ts
+│   │   ├── block-type.vo.ts        # HERO, TEXT, IMAGE_GALLERY, ...
+│   │   ├── block-image.vo.ts
+│   │   └── slug.vo.ts
+│   └── repositories/
+│       └── landing-page.repository.ts  # Puerto (interface)
+├── application/                    # Casos de uso (orquestación)
+│   ├── use-cases/
+│   │   ├── load-landing-page.use-case.ts
+│   │   ├── update-block-from-code.use-case.ts   # modo código
+│   │   └── manage-block-images.use-case.ts      # modo visual
+│   ├── dtos/landing-page.dto.ts
+│   └── mappers/landing-page.mapper.ts
+├── infrastructure/                 # Implementación concreta
+│   └── repositories/http-landing-page.repository.ts
+├── presentation/                   # UI Angular
+│   ├── stores/site-builder.store.ts   # Signals store (facade)
+│   └── components/site-editor/        # Editor dual + preview
+└── site-builder.providers.ts       # DI: puerto -> implementación
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Clave del diseño
 
-## Code scaffolding
+El modo código y el modo visual editan el MISMO objeto `block.data`:
+- **Código**: `UpdateBlockFromCodeUseCase` parsea JSON -> `block.replaceContent()`
+- **Visual**: `ManageBlockImagesUseCase` -> `block.addImage()` / `removeImage()`
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Una galería creada en código es editable visualmente (y viceversa) porque
+nunca hay dos representaciones — una sola fuente de verdad.
 
-```bash
-ng generate component component-name
-```
+## Endpoints REST esperados (backend Spring Boot)
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+- `GET /api/v1/sites/{slug}`  -> LandingPageDto
+- `PUT /api/v1/sites/{slug}`  -> LandingPageDto
 
-```bash
-ng generate --help
-```
+## Validado
 
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Capa de dominio compila con `strict: true` y pasa 24 tests funcionales
+(sincronización código↔visual, invariantes, orden de bloques).
